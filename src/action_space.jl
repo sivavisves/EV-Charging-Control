@@ -1,6 +1,6 @@
 using IterTools: product
 
-
+export generate_combinations
 
 # Generate all possible action combinations for three cars
 function generate_combinations(actions)
