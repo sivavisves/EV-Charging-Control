@@ -11,10 +11,11 @@ I = 3   # Number of vehicles
 P_max = 10.0  # Maximum charging power
 E_max = 20.0  # Maximum state of charge
 η = 1.0  # Charging efficiency
-λ_t = [0.1 for t in 1:T]  # Cost rate per kWh charged
+num_scenarios = 17  # Number of price scenarios
+λ_t = [0.1 for t in 1:num_scenarios]  # Cost rate per kWh charged
 
 # Load price data
-prices = read_extract_prices("Price_data/price_scenario_data.h5", 12)  # adjust indices as per your data structure
+prices = read_extract_prices("Price_data/price_scenario_data.h5", num_scenarios)  # adjust indices as per your data structure
 
 # Load trip data
 trip_data = CSV.read("Trip_data/trip_data.csv", DataFrame)

@@ -11,14 +11,14 @@ function read_extract_prices(filepath, num_scenarios)
     # You may need to adjust "prices" to the correct dataset name
 
     # create DataFrames with scenarios and prices
-    prices = DataFrame(Time = Int[], Price = Float64[])
+    prices = DataFrame(Time = Int[], Scenario = Int[], Price = Float64[])
     time = collect(8:19)
 
     for i in 1:num_scenarios
         prices_file = read(file, "scenario_$i");
         extracted_prices = prices_file["price"][8:19];
-        for i in eachindex(extracted_prices)
-            push!(prices, (time[i], extracted_prices[i]))
+        for j in eachindex(extracted_prices)
+            push!(prices, (time[j], i, extracted_prices[j]))
         end
     end
 
