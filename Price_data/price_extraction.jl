@@ -35,3 +35,8 @@ end
 
 # # extract only 8am prices
 # eight_am_prices = test_prices[test_prices.Time .== 8, :]
+
+# prices = read_extract_prices("Price_data/price_scenario_data.h5", num_scenarios)  # adjust indices as per your data structure
+
+# # save extracted prices to a CSV file
+# CSV.write("Price_data/extracted_prices.csv", prices)
