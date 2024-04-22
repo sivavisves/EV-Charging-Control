@@ -93,7 +93,7 @@ function calculate_cost(lambda_t, action, new_state, state, trip_data, t, num_ve
 
         # Aggregate cost for this vehicle
         for j in 1:length(charging_cost)[1]
-            total_cost += 0.17*(charging_cost[j] + penalty_cost)
+            total_cost += 0.17*sum(charging_cost[j] .+ penalty_cost)
         end
     end
 

@@ -13,18 +13,19 @@ E_max = 20.0  # Maximum state of charge
 num_scenarios = 17  # Number of price scenarios
 λ_t = zeros(17)
 time_stamp = collect(8:19)
+penalty_level = 1.0
 
 # Load price data
 prices = read_extract_prices("Price_data/price_scenario_data.h5", num_scenarios)  # adjust indices as per your data structure
 
 #price adjustment
-prices.Price = prices.Price*0.001
+prices.Price = prices.Price*0.1
 
 # Load trip data
-trip_data = CSV.read("Trip_data/trip_data.csv", DataFrame)
+trip_data = CSV.read("trip_data.csv", DataFrame)
 
 # Generate all possible action combinations for three cars
-actions = [(10, 0), (5, 0), (0,1), (0, 0)]
+actions = [(10, 0), (5, 0), (0,1)]
 action_vectors = generate_combinations(actions)
 
 # Generate all possible combinations of state
@@ -37,7 +38,7 @@ V = zeros(Float64, length(state_vectors), T+1)  # Terminal condition V[:, T+1] =
 
 function state_to_value(state, state_vectors, t, V)
     # This function finds the index of 'state' in 'state_vectors'
-    #rounded_state = round.(state / 5) * 5
+    rounded_state = round.(state / 5) * 5
     if any(x -> x > E_max, state)
         return Inf
     end
@@ -47,11 +48,10 @@ function state_to_value(state, state_vectors, t, V)
     end
 
     for (idx, s) in enumerate(state_vectors)
-        if s == state
+        if s == rounded_state
             return V[idx, t]
         end
     end
-    state
     error("State not found in state vectors")
 end
 
@@ -89,7 +89,7 @@ function calculate_cost(lambda_t, action, trip_data, t, num_vehicles)
         d_i_t = trip_data[t, Symbol("Car_$i")]
         
         # Calculate the cost for vehicle i
-        cost_i = sum(0.17*(lambda_t .* P_C_i_t .- 1000*d_i_t * u_i_t .+ 5000*d_i_t*(1-u_i_t)))
+        cost_i = sum(0.17.*(lambda_t .* P_C_i_t .- 50*d_i_t * u_i_t .+ (penalty_level*100)*d_i_t*(1-u_i_t)))
         total_cost += cost_i
     end
     
@@ -239,3 +239,77 @@ consolidate_optimal_data()
 #     cost_i = 0.17*(lambda_t .* P_C_i_t .- d_i_t * u_i_t)
 #     total_cost += cost_i
 # end
+
+# function parse_state(state_str)
+#     # Assuming the state string format is something like "[10, 10, 10]"
+#     # We need to strip the brackets and split by comma
+#     return parse.(Int, split(strip(state_str, ['[', ']']), ", "))
+# end
+
+# function parse_new_state(new_state_str)
+#     # Check if the string is already in a list-like format, e.g., "[0.0, 0.0, 0.0]"
+#     if occursin(r"^\[\d+(\.\d+)?(, \d+(\.\d+)?)*\]$", new_state_str)
+#         # Remove the brackets and split by comma and space
+#         return parse.(Float64, split(strip(new_state_str, ['[', ']']), ", "))
+#     else
+#         # Handle other formats, or raise an error if the format is unexpected
+#         error("Unexpected format for new_state_str: $new_state_str")
+#     end
+# end
+
+# function simulate_state_transitions(file_path, initial_state, T)
+#     # Load the optimal actions data
+#     optimal_actions_df = CSV.read(file_path, DataFrame)
+
+#     # Convert the state column from string to array of integers
+#     optimal_actions_df.state = [parse_state(state_str) for state_str in optimal_actions_df.state]
+#     optimal_action_df.new_state = [parse_new_state(state_new_str) for state_new_str in optimal_action_df.new_state]
+
+#     # Initialize a DataFrame to store the results
+#     results = DataFrame(time=[], state=[], action=[], new_state=[], cost=[])
+
+#     # Start from the initial state
+#     current_state = initial_state
+
+#     # Iterate over each time step
+#     for t in 1:T
+#         # Filter the DataFrame for the current time and state
+#         filtered_df = filter(row -> row.time == time_stamp[t] && row.state == current_state, optimal_actions_df)
+
+#         # Check if there is a valid action for the current state
+#         if nrow(filtered_df) == 0
+#             println("No valid actions found for state $current_state at time $(time_stamp[t])")
+#             break  # Exit if no valid actions are found
+#         end
+
+#         # Assuming the first row after filter gives us the optimal action
+#         optimal_action = filtered_df[1, :action]
+#         new_state = filtered_df[1, :new_state]
+#         cost = filtered_df[1, :total_cost]
+
+#         # Append to the results DataFrame
+#         push!(results, (t, current_state, optimal_action, new_state, cost))
+
+#         # Update the current state
+#         current_state = round.(new_state / 5) * 5
+#         println("Time: $(time_stamp[t]), State: $current_state, Action: $optimal_action, Cost: $cost")
+#     end
+
+#     return results
+# end
+
+# # Example usage
+# file_path = "Results/all_optimal_actions.csv"
+# initial_state = [10, 10, 10]  # Assuming state is represented by an array
+# T = 12  # Total number of time periods
+
+# results_df = simulate_state_transitions(file_path, initial_state, T)
+# println(results_df)
+
+
+# optimal_action_df = CSV.read("Results/all_optimal_actions.csv", DataFrame)
+
+# # use parser
+# optimal_action_df.state = [parse_state(state_str) for state_str in optimal_action_df.state]
+
+# optimal_action_df.state[1]
