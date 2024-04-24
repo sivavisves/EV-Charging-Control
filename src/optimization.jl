@@ -1,73 +1,164 @@
-using JuMP, Gurobi
+export state_to_value, calculate_new_state, calculate_cost, save_action_state_data_to_array, save_optimal_actions_states_to_file, consolidate_optimal_data
 
-export solve_ev_charging_optimization
-
-function solve_ev_charging_optimization(I, J, P_max, E_max, η, λ, D_j, a_j, E_given, penalty_cost)
-    model = Model(Gurobi.Optimizer)
-
-    @variable(model, 0 <= P_C[i=1:I] <= P_max)
-    @variable(model, E[i=1:I] >= 0)
-    @variable(model, Trip[i=1:I, j=1:J], Bin)
-    @variable(model, d[i=1:I, j=1:J] >= 0)  # Served demand
-    @variable(model, UnservedDemand[j=1:J] >= 0)
-
-    @objective(model, Min, sum(λ * P_C[i] for i in 1:I) + penalty_cost * sum(UnservedDemand[j] for j in 1:J))
-
-    @constraint(model, soc_updates[i=1:I], E[i] == E_given[i] + η * P_C[i] - sum(d[i, j] for j in 1:J))
-    @constraint(model, soc_limits[i=1:I], E[i] <= E_max)
-    @constraint(model, charge_limit[i=1:I], P_C[i] <= P_max * (1 - sum(Trip[i, j] for j in 1:J)))
-    @constraint(model, trip_availability[j=1:J], sum(Trip[i, j] for i in 1:I) <= a_j[j])
-    @constraint(model, demand_served[i=1:I, j=1:J], d[i, j] <= D_j[j] * Trip[i, j])
-    @constraint(model, unserved_demand_calc[j=1:J], UnservedDemand[j] == D_j[j] - sum(d[i, j] for i in 1:I))
-
-    optimize!(model)
-    
-    return value.(P_C), value.(E), value.(Trip), objective_value(model)
-end
-
-using JuMP, Gurobi
-
-function solve_ev_charging_optimization_time(I, J, P_max, E_max, η, λ, D_j_t, a_j_t, E_initial, penalty_cost)
-    model = Model(Gurobi.Optimizer)
-
-    # Time steps defined explicitly
-    T = 2  # Total hours of planning, adjust as needed
-
-    @variable(model, 0 <= P_C[i=1:I, t=1:T] <= P_max)
-    @variable(model, E[i=1:I, t=0:T] >= 0)  # Include E[.,0] for initial states
-    @variable(model, Trip[i=1:I, j=1:J, t=1:T], Bin)
-    @variable(model, d[i=1:I, j=1:J, t=1:T] >= 0)  # Served demand
-    @variable(model, UnservedDemand[j=1:J, t=1:T] >= 0)
-
-    # Objective function
-    @objective(model, Min, sum(λ[t] * P_C[i, t] for i in 1:I, t in 1:T) + 
-               penalty_cost * sum(UnservedDemand[j, t] for j in 1:J, t in 1:T))
-
-    # Constraints for each time step
-    for t in 1:T
-        @constraint(model, [i=1:I], E[i, t] == E[i, t-1] + η * P_C[i, t] - sum(d[i, j, t] for j in 1:J))
-        @constraint(model, [i=1:I], E[i, t] <= E_max)
-        @constraint(model, [i=1:I], P_C[i, t] <= P_max * (1 - sum(Trip[i, j, t] for j in 1:J)))
-        @constraint(model, [j=1:J], sum(Trip[i, j, t] for i in 1:I) <= a_j_t[j, t])
-        @constraint(model, [i=1:I, j=1:J], d[i, j, t] <= D_j_t[j, t] * Trip[i, j, t])
-        @constraint(model, [j=1:J], UnservedDemand[j, t] == D_j_t[j, t] - sum(d[i, j, t] for i in 1:I))
+function state_to_value(state, state_vectors, t, V)
+    # This function finds the index of 'state' in 'state_vectors'
+    rounded_state = round.(state / 5) * 5
+    if any(x -> x > E_max, state)
+        return Inf
     end
 
-    # Initial state of charge for each vehicle
-    @constraint(model, [i=1:I], E[i, 0] == E_initial[i])
+    if any(x -> x < 0, state)
+        return Inf
+    end
 
-    optimize!(model)
+    for (idx, s) in enumerate(state_vectors)
+        if s == rounded_state
+            return V[idx, t]
+        end
+    end
+    error("State not found in state vectors")
+end
+
+function calculate_new_state(current_state, action, eta, trip_data, t, num_vehicles)
+    # Initialize the new state vector
+    new_state = zeros(length(current_state))
+
+    # Iterate over each vehicle
+    for i in 1:num_vehicles
+        # Extract current state of charge, charging action, and trip decision
+        E_i_t = current_state[i]
+        P_C_i_t, u_i_t = action[i]
+        
+        # Extract trip demand for vehicle i at time t (assumed to be stored in trip_data DataFrame)
+        d_i_t = trip_data[t, Symbol("Car_$i")]
+
+        # Calculate the new state of charge based on the dynamics
+        E_i_t_plus_1 = E_i_t + eta * P_C_i_t * (1 - u_i_t) - d_i_t * u_i_t
+        new_state[i] = E_i_t_plus_1
+    end
     
-    return value.(P_C), value.(E), value.(Trip), objective_value(model)
+    return round.(Int64,new_state)
+end
+
+function calculate_cost(lambda_t, action, trip_data, t, num_vehicles)
+    total_cost = 0.0
+
+    # Calculate cost for each vehicle
+    for i in 1:num_vehicles
+        # Extract charging power and trip decision
+        P_C_i_t, u_i_t = action[i]
+        
+        # Extract trip demand for vehicle i at time t (assumed to be stored in trip_data DataFrame)
+        d_i_t = trip_data[t, Symbol("Car_$i")]
+        
+        # Calculate the cost for vehicle i
+        cost_i = sum(0.17.*(lambda_t .* P_C_i_t .- 20*d_i_t * u_i_t .+ (penalty_level*100)*d_i_t*(1-u_i_t)))
+        total_cost += cost_i
+    end
+    
+    return total_cost
 end
 
 
-# # Example usage
-# I, J = 3, 2
-# P_max, E_max, η = 100.0, 200.0, 0.9
-# λ = 10.0  # Cost per unit charging power
-# D_j = [50, 40]  # Demand for each trip
-# a_j = [1, 1]  # Max trips that can be taken
-# E_given = [0, 0, 0]  # Initial state of charge for each vehicle
+# Function to compute and save DataFrames in an array
+function save_action_state_data_to_array()
+    data_frames = Array{DataFrame, 1}(undef, T)
 
-# P_C_d, E_d, trip_d, end_val = solve_ev_charging_optimization(I, J, P_max, E_max, η, λ, D_j, a_j, E_given, 100)
+    for t in T:-1:1
+        lambda_t = prices[prices.Time .== time_stamp[t], :].Price
+        results = []
+
+        for state in state_vectors
+            for action in action_vectors
+                new_state = calculate_new_state(state, action, η, trip_data, t, I)
+                new_state_val = state_to_value(new_state, state_vectors, t+1, V)
+                cost = calculate_cost(lambda_t, action, trip_data, t, I) 
+                total_cost = cost + new_state_val
+                push!(results, (time=time_stamp[t], state=state, action=action, new_state=new_state, cost=cost,  new_state_val=new_state_val, total_cost=total_cost))
+            end
+        end
+
+        df = DataFrame(results)
+        data_frames[t] = df  # Store DataFrame in the array at the index corresponding to the time step
+        println("Data frame saved for time period $(time_stamp[t]).")
+        CSV.write("Results/Tensor/data_frame_time_$(time_stamp[t]).csv", df)
+    end
+
+    return data_frames
+end
+
+
+function save_optimal_actions_states_to_file()
+    data_frames = Array{DataFrame, 1}(undef, T)
+
+    for t in T:-1:1
+        lambda_t = prices[prices.Time .== time_stamp[t], :].Price
+        results = []
+
+        for state in state_vectors
+            min_cost = Inf
+            optimal_action = nothing
+            optimal_new_state = nothing
+
+            for action in action_vectors
+                new_state = calculate_new_state(state, action, η, trip_data, t, I)
+                new_state_val = state_to_value(new_state, state_vectors, t+1, V)
+                cost = calculate_cost(lambda_t, action, trip_data, t, I) + new_state_val
+                
+                if cost < min_cost
+                    min_cost = cost
+                    optimal_action = action
+                    optimal_new_state = new_state
+                end
+            end
+
+            # Store the results for the optimal action of this state
+            push!(results, (time=time_stamp[t], state=state, action=optimal_action, new_state=optimal_new_state, total_cost=min_cost))
+        end
+
+        # Convert results to DataFrame and store in array
+        df = DataFrame(results)
+        data_frames[t] = df
+        println("Optimal actions and costs saved for time period $(time_stamp[t]).")
+        CSV.write("Results/Tensor/optimal_actions_states_time_$(time_stamp[t]).csv", df)
+    end
+
+    return data_frames
+end
+
+
+function consolidate_optimal_data()
+    # Assuming the number of time periods and the base file path are defined
+    num_time_periods = T
+    base_file_path = "Results/Tensor/"
+
+    # Initialize empty DataFrames to store consolidated data
+    all_optimal_actions = DataFrame()
+    all_state_transitions = DataFrame()
+
+    for t in 1:num_time_periods
+        # Construct the file path
+        file_path = base_file_path * "optimal_actions_states_time_$(time_stamp[t]).csv"
+
+        # Read the current time step's DataFrame
+        current_df = CSV.read(file_path, DataFrame)
+
+        # Extract columns related to actions and state transitions
+        actions_df = select(current_df, :time, :state, :action, :new_state, :total_cost)
+        states_df = select(current_df, :time, :state, :new_state, :total_cost)
+
+        # Append the extracted data to the master DataFrames
+        all_optimal_actions = vcat(all_optimal_actions, actions_df)
+        all_state_transitions = vcat(all_state_transitions, states_df)
+    end
+
+    # Optionally, you can sort the data by time if needed
+    sort!(all_optimal_actions, :time)
+    sort!(all_state_transitions, :time)
+
+    # Save the consolidated data to new CSV files
+    CSV.write("Results/all_optimal_actions.csv", all_optimal_actions)
+    CSV.write("Results/all_optimal_state_transitions.csv", all_state_transitions)
+
+    return all_optimal_actions, all_state_transitions
+end
