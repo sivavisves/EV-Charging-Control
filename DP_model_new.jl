@@ -22,7 +22,7 @@ prices = read_extract_prices("Price_data/price_scenario_data.h5", num_scenarios)
 prices.Price = prices.Price*0.1
 
 # Load trip data
-trip_data = CSV.read("trip_data.csv", DataFrame)
+trip_data = CSV.read("Trip_data/trip_data.csv", DataFrame)
 
 # Generate all possible action combinations for three cars
 actions = [(10, 0), (5, 0), (0,1)]
@@ -74,7 +74,7 @@ function calculate_new_state(current_state, action, eta, trip_data, t, num_vehic
         new_state[i] = E_i_t_plus_1
     end
     
-    return new_state
+    return round.(Int64,new_state)
 end
 
 function calculate_cost(lambda_t, action, trip_data, t, num_vehicles)
@@ -208,108 +208,3 @@ end
 # Call the function to execute the consolidation process
 consolidate_optimal_data()
 
-
-# lambda_t = prices[prices.Time .== time_stamp[12], :].Price
-
-# calculate_cost(lambda_t, [(10, 0), (10, 0), (10, 0)], trip_data, 12, 3)
-
-
-# total_cost = 0.0
-
-# num_vehicles = 3
-
-# action = [(10, 0), (5, 0), (0,1)]
-# t=12
-
-# P_C_i_t, u_i_t = action[1]
-# # Extract trip demand for vehicle i at time t (assumed to be stored in trip_data DataFrame)
-# d_i_t = trip_data[t, Symbol("Car_1")]
-
-# cost_i = sum(0.17*(lambda_t .* P_C_i_t .- (d_i_t * u_i_t)))
-
-# # Calculate cost for each vehicle
-# for i in 1:num_vehicles
-#     # Extract charging power and trip decision
-#     P_C_i_t, u_i_t = action[i]
-    
-#     # Extract trip demand for vehicle i at time t (assumed to be stored in trip_data DataFrame)
-#     d_i_t = trip_data[t, Symbol("Car_$i")]
-    
-#     # Calculate the cost for vehicle i
-#     cost_i = 0.17*(lambda_t .* P_C_i_t .- d_i_t * u_i_t)
-#     total_cost += cost_i
-# end
-
-# function parse_state(state_str)
-#     # Assuming the state string format is something like "[10, 10, 10]"
-#     # We need to strip the brackets and split by comma
-#     return parse.(Int, split(strip(state_str, ['[', ']']), ", "))
-# end
-
-# function parse_new_state(new_state_str)
-#     # Check if the string is already in a list-like format, e.g., "[0.0, 0.0, 0.0]"
-#     if occursin(r"^\[\d+(\.\d+)?(, \d+(\.\d+)?)*\]$", new_state_str)
-#         # Remove the brackets and split by comma and space
-#         return parse.(Float64, split(strip(new_state_str, ['[', ']']), ", "))
-#     else
-#         # Handle other formats, or raise an error if the format is unexpected
-#         error("Unexpected format for new_state_str: $new_state_str")
-#     end
-# end
-
-# function simulate_state_transitions(file_path, initial_state, T)
-#     # Load the optimal actions data
-#     optimal_actions_df = CSV.read(file_path, DataFrame)
-
-#     # Convert the state column from string to array of integers
-#     optimal_actions_df.state = [parse_state(state_str) for state_str in optimal_actions_df.state]
-#     optimal_action_df.new_state = [parse_new_state(state_new_str) for state_new_str in optimal_action_df.new_state]
-
-#     # Initialize a DataFrame to store the results
-#     results = DataFrame(time=[], state=[], action=[], new_state=[], cost=[])
-
-#     # Start from the initial state
-#     current_state = initial_state
-
-#     # Iterate over each time step
-#     for t in 1:T
-#         # Filter the DataFrame for the current time and state
-#         filtered_df = filter(row -> row.time == time_stamp[t] && row.state == current_state, optimal_actions_df)
-
-#         # Check if there is a valid action for the current state
-#         if nrow(filtered_df) == 0
-#             println("No valid actions found for state $current_state at time $(time_stamp[t])")
-#             break  # Exit if no valid actions are found
-#         end
-
-#         # Assuming the first row after filter gives us the optimal action
-#         optimal_action = filtered_df[1, :action]
-#         new_state = filtered_df[1, :new_state]
-#         cost = filtered_df[1, :total_cost]
-
-#         # Append to the results DataFrame
-#         push!(results, (t, current_state, optimal_action, new_state, cost))
-
-#         # Update the current state
-#         current_state = round.(new_state / 5) * 5
-#         println("Time: $(time_stamp[t]), State: $current_state, Action: $optimal_action, Cost: $cost")
-#     end
-
-#     return results
-# end
-
-# # Example usage
-# file_path = "Results/all_optimal_actions.csv"
-# initial_state = [10, 10, 10]  # Assuming state is represented by an array
-# T = 12  # Total number of time periods
-
-# results_df = simulate_state_transitions(file_path, initial_state, T)
-# println(results_df)
-
-
-# optimal_action_df = CSV.read("Results/all_optimal_actions.csv", DataFrame)
-
-# # use parser
-# optimal_action_df.state = [parse_state(state_str) for state_str in optimal_action_df.state]
-
-# optimal_action_df.state[1]
