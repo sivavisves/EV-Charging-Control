@@ -31,7 +31,7 @@ cost_columns = [:cost_1; Symbol.("cost_t", 2:T)]
 # intial DataFrame
 df_test = df[df.time .== time_stamp[1], :]
 
-for t in 1:T
+for t in 2:T
     current_state = df[df.time .== time_stamp[t], :]
     state_col = Vector{Any}(undef, size(current_state, 1))
     new_state_col = Vector{Any}(undef, size(current_state, 1))

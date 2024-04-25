@@ -25,7 +25,7 @@ prices.Price = prices.Price*0.001
 trip_data = CSV.read("Trip_data/trip_data.csv", DataFrame)
 
 # Generate all possible action combinations for three cars
-actions = [(10, 0), (5, 0), (0,1)]
+actions = [(10, 0), (5, 0), (0,0), (0,1)]
 action_vectors = generate_combinations(actions)
 
 # Generate all possible combinations of state
@@ -34,15 +34,11 @@ state_vectors = generate_state_space_vector(E_max, 5)
 # Initialize dynamic programming value function array (simplified assumption)
 V = zeros(Float64, length(state_vectors), T+1)  # Terminal condition V[:, T+1] = 0 already set
 
-λ_t = prices[prices.Time .== time_stamp[12], :]
-
 
 # Call the function to process and save the data
-data_frames_array = save_action_state_data_to_array()
+data_frames_array = save_action_state_data_to_array(V)
 
-
-
-test_df = save_optimal_actions_states_to_file()
+test_df = save_optimal_actions_states_to_file(V)
 
 # Call the function to execute the consolidation process
 consolidate_optimal_data()
