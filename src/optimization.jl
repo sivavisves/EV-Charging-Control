@@ -4,11 +4,11 @@ function state_to_value(state, state_vectors, t, V)
     # This function finds the index of 'state' in 'state_vectors'
     #rounded_state = round.(state / 5) * 5
     if any(x -> x > E_max, state)
-        return 100000
+        return Inf
     end
 
     if any(x -> x < 0, state)
-        return 100000
+        return Inf
     end
 
     for (idx, s) in enumerate(state_vectors)
