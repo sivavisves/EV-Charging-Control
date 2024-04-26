@@ -225,8 +225,6 @@ function state_to_value_lookahead(state, t, lambda_t, trip_data)
     return final_cost
 end
 
-x = state_to_value_lookahead([10, 10, 10], 12, 0.1, trip_data)
-
 # Function to compute and save DataFrames in an array
 function save_action_state_data_to_array_lookahead()
     data_frames = Array{DataFrame, 1}(undef, T)
