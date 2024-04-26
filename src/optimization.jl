@@ -195,6 +195,7 @@ function calculate_cost_lookahead(lambda_t, action, trip_data, t, num_vehicles)
 end
 
 
+
 function state_to_value_lookahead(state, t, lambda_t, trip_data)
     # This function finds the index of 'state' in 'state_vectors'
     #rounded_state = round.(state / 5) * 5
@@ -207,16 +208,55 @@ function state_to_value_lookahead(state, t, lambda_t, trip_data)
     end
 
     final_cost = Inf
+    final_action = []
     for action in action_vectors
         if t == 13
             return 0
+            break
         end
+
         cost = calculate_cost_lookahead(lambda_t, action, trip_data, t, I) 
 
         if cost < final_cost
             final_cost = cost
+            final_action = action
         end 
     end
     return final_cost
 end
 
+x = state_to_value_lookahead([10, 10, 10], 12, 0.1, trip_data)
+
+# Function to compute and save DataFrames in an array
+function save_action_state_data_to_array_lookahead()
+    data_frames = Array{DataFrame, 1}(undef, T)
+
+    for t in 1:T
+        lambda_t = average_prices[average_prices.time .== time_stamp[t], :].average_price[1]
+        if t == 12
+            lambda_t_next = 0;
+        else
+            lambda_t_next = average_prices[average_prices.time .== time_stamp[t+1], :].average_price[1]
+        end
+        
+        results = []
+
+        for state in state_vectors
+            for action in action_vectors
+                new_state = calculate_new_state(state, action, η, trip_data, t, I)
+                new_state_val = state_to_value_lookahead(new_state, t+1, lambda_t_next, trip_data)
+                cost = calculate_cost_lookahead(lambda_t, action, trip_data, t, I) 
+                total_cost = cost + new_state_val[1]
+                
+                push!(results, (time=time_stamp[t], state=state, action=action, new_state=new_state, cost=cost, new_state_cost = new_state_val, total_cost=total_cost))
+            end
+        end
+
+        df = DataFrame(results)
+        data_frames[t] = df  # Store DataFrame in the array at the index corresponding to the time step
+        println("Data frame saved for time period $(time_stamp[t]).")
+        CSV.write("Results/Tensor/data_frame_time_lookahead_$(time_stamp[t]).csv", df)
+    end
+
+    return data_frames
+end

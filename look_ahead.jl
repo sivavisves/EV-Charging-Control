@@ -33,23 +33,48 @@ state_vectors = generate_state_space_vector(E_max, 5)
 
 data_frames = Array{DataFrame, 1}(undef, T)
 
-# for t in 1:T
-#     lambda_t = average_prices[average_prices.time .== time_stamp[t], :].average_price[1]
-#     results = []
 
-#     for state in state_vectors
-#         for action in action_vectors
-#             new_state = calculate_new_state(state, action, η, trip_data, t, I)
-#             new_state_val = state_to_value(new_state, state_vectors, t+1, V)
-#             cost = calculate_cost_lookahead(lambda_t, action, trip_data, t, I) 
-#             total_cost = cost + new_state_val
-#             push!(results, (time=time_stamp[t], state=state, action=action, new_state=new_state, cost=cost,  new_state_val=new_state_val, total_cost=total_cost))
-#         end
-#     end
 
-#     # Save results to DataFrame
-#     data_frames[t] = DataFrame(results)
-# end
+save_action_state_data_to_array_lookahead()
+
+
+data_frames = Array{DataFrame, 1}(undef, T)
+
+for t in 1:T
+    lambda_t = average_prices[average_prices.time .== time_stamp[t], :].average_price[1]
+    results = []
+    optimal_action = []
+    optimal_new_state = []
+    current_cost = 0.0
+    new_state_cost = 0.0
+    total_cost = 0.0
+    optimal_new_state_action = []
+
+    for state in state_vectors
+        min_cost = Inf
+        for action in action_vectors
+            new_state = calculate_new_state(state, action, η, trip_data, t, I)
+            new_state_val = state_to_value_lookahead(new_state, t+1, lambda_t, trip_data)
+            cost = calculate_cost_lookahead(lambda_t, action, trip_data, t, I) 
+            total_cost = cost + new_state_val
+
+            if total_cost < min_cost
+                min_cost = total_cost
+                optimal_action = action
+                optimal_new_state = new_state
+                current_cost = cost
+                new_state_cost = new_state_val
+            end
+        end
+        push!(results, (time=time_stamp[t], state=state, action=optimal_action, new_state=optimal_new_state, cost=current_cost, new_state_cost = new_state_cost, total_cost=total_cost))
+    end
+
+    df = DataFrame(results)
+    data_frames[t] = df  # Store DataFrame in the array at the index corresponding to the time step
+    println("Data frame saved for time period $(time_stamp[t]).")
+    CSV.write("Results/Tensor/Optimal_data_frame_time_lookahead_$(time_stamp[t]).csv", df)
+end
+
 
 
 
