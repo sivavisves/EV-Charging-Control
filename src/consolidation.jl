@@ -1,4 +1,4 @@
-using CSV, DataFrames
+using CSV, DataFrames, Plots, PrettyTables
 
 # Load and process data
 df = CSV.read("Results/all_optimal_actions.csv", DataFrame)
@@ -78,7 +78,67 @@ end
 
 df_test
 
-df_test[:, 9:20]
 
 # Save the consolidated data to a new CSV file
-CSV.write("Results/consolidated_optimal_state.csv", df_test)
+#CSV.write("Results/consolidated_optimal_state.csv", df_test)
+
+
+#---------------------------plotting--------------------------------
+
+
+
+# remove time columns
+df_test = select!(df_test, Not([:time]))
+
+# change the name of state to state_t8
+rename!(df_test, :state => :state_t8)
+rename!(df_test, :new_state => :new_state_t8)
+rename!(df_test, :action => :action_t8)
+rename!(df_test, :cost => :cost_t8)
+rename!(df_test, :new_state_val_opt => :new_state_val_cost_t8)
+rename!(df_test, :total_cost_opt => :total_cost_t8)
+
+
+states_of_interest = [[0,0,0], [5,5,5], [10,10,10], [15,15,15], [20,20,20]]
+
+x = filter(row -> row.state_t8 == [5,5,5], df_test)
+
+
+# only take cost information from x
+cost_1 = zeros(12)
+
+# define df_cost
+df_cost = DataFrame()
+
+for i in eachindex(states_of_interest)
+    y = filter(row -> row.state_t8 == states_of_interest[i], df_test)
+    cost_1 = zeros(12)
+    for j in 1:12
+        cost_1[j] = y[:, Symbol("cost_t", time_stamp[j])][1]
+    end
+    df_cost[!, Symbol("cost_$(i)")] = cost_1
+end
+
+cost_plot = plot(time_stamp ,df_cost[:, "cost_1"], label = "State: [0,0,0]", xlabel = "Time", ylabel = "Cost", title = "Cost vs Time", lw = 2, xticks = 8:1:19);
+
+for i in 2:5
+    plot!(time_stamp ,df_cost[:, "cost_$(i)"], label = "State: $(states_of_interest[i])", lw = 2)
+end
+
+cost_plot
+
+savefig(cost_plot, "Results/DP_cost_plot.png")
+
+
+# Create a table with the data used in the plot
+table_data = hcat(time_stamp, [df_cost[:, Symbol("cost_$(i)")] for i in 1:length(states_of_interest)]...)
+table_header = ["Time", "State: [0,0,0]", "State: [5,5,5]", "State: [10,10,10]", "State: [15,15,15]", "State: [20,20,20]"]
+pretty_table(table_data, header = table_header, backend = Val(:latex)) 
+
+
+sum(df_cost[:, "cost_1"])
+sum(df_cost[:, "cost_2"])
+sum(df_cost[:, "cost_3"])
+sum(df_cost[:, "cost_4"])
+sum(df_cost[:, "cost_5"])
+

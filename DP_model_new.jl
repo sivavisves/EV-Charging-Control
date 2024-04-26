@@ -41,5 +41,7 @@ data_frames_array = save_action_state_data_to_array(V)
 test_df = save_optimal_actions_states_to_file(V)
 
 # Call the function to execute the consolidation process
-consolidate_optimal_data()
+all_optimal_actions, all_optimal_states = consolidate_optimal_data()
+
+all_optimal_actions
 
