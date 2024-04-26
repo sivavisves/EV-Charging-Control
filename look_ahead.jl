@@ -31,9 +31,6 @@ action_vectors = generate_combinations(actions)
 # Generate all possible combinations of state
 state_vectors = generate_state_space_vector(E_max, 5)
 
-# Initialize dynamic programming value function array (simplified assumption)
-V = zeros(Float64, length(state_vectors), T+1)  # Terminal condition V[:, T+1] = 0 already set
-
 data_frames = Array{DataFrame, 1}(undef, T)
 
 # for t in 1:T
@@ -58,12 +55,17 @@ data_frames = Array{DataFrame, 1}(undef, T)
 
 for t in 1:T
     lambda_t = average_prices[average_prices.time .== time_stamp[t], :].average_price[1]
+    if t == 12
+        lambda_t_next = 0
+    else
+        lambda_t_next = average_prices[average_prices.time .== time_stamp[t+1], :].average_price[1]
+    end
     min_costs = Dict()
 
     for state in state_vectors
         for action in action_vectors
             new_state = calculate_new_state(state, action, η, trip_data, t, I)
-            new_state_val = state_to_value_lookahead(new_state, t+1, lambda_t, trip_data)
+            new_state_val = state_to_value_lookahead(new_state, t+1, lambda_t_next, trip_data)
             cost = calculate_cost_lookahead(lambda_t, action, trip_data, t, I) 
             total_cost = cost + new_state_val
 
@@ -118,7 +120,7 @@ time_stamp = collect(8:19)
 # intial DataFrame
 df_test = df[df.time .== time_stamp[1], :]
 
-for t in 2:T
+for t in 1:T
     current_state = df[df.time .== time_stamp[t], :]
     state_col = Vector{Any}(undef, size(current_state, 1))
     new_state_col = Vector{Any}(undef, size(current_state, 1))

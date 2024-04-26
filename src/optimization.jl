@@ -137,49 +137,6 @@ function save_optimal_actions_states_to_file(V)
 end
 
 
-# function save_optimal_actions_states_to_file(V)
-#     data_frames = Array{DataFrame, 1}(undef, T)
-
-#     for t in T:-1:1
-#         lambda_t = prices[prices.Time .== time_stamp[t], :].Price
-#         results = []
-
-#         for state in state_vectors
-#             min_cost = Inf
-#             optimal_action = nothing
-#             optimal_new_state = nothing
-#             new_state_val_opt = nothing
-#             total_cost_opt = Inf
-
-#             for action in action_vectors
-#                 state_index = findall(x -> x == state, state_vectors)[1]
-#                 new_state = calculate_new_state(state, action, η, trip_data, t, I)
-#                 new_state_val = state_to_value(new_state, state_vectors, t+1, V)
-#                 cost = calculate_cost(lambda_t, action, trip_data, t, I) 
-#                 total_cost = cost + new_state_val
-                
-#                 if cost < min_cost
-#                     min_cost = cost
-#                     optimal_action = action
-#                     optimal_new_state = new_state
-#                     new_state_val_opt = new_state_val
-#                     V[state_index, t] = total_cost
-#                 end
-#             end
-#             push!(results, (time=time_stamp[t], state=state, action=optimal_action, new_state=optimal_new_state, cost=min_cost, new_state_val_opt = new_state_val_opt, total_cost_opt=total_cost))
-#         end
-
-#         # Convert results to DataFrame and store in array
-#         df = DataFrame(results)
-#         data_frames[t] = df
-#         println("Optimal actions and costs saved for time period $(time_stamp[t]).")
-#         CSV.write("Results/Tensor/optimal_actions_states_time_$(time_stamp[t]).csv", df)
-#     end
-
-#     return data_frames
-# end
-
-
 function consolidate_optimal_data()
     # Assuming the number of time periods and the base file path are defined
     num_time_periods = T
@@ -240,7 +197,7 @@ end
 
 function state_to_value_lookahead(state, t, lambda_t, trip_data)
     # This function finds the index of 'state' in 'state_vectors'
-    rounded_state = round.(state / 5) * 5
+    #rounded_state = round.(state / 5) * 5
     if any(x -> x > E_max, state)
         return Inf
     end

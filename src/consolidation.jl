@@ -68,12 +68,12 @@ for t in 1:T
     end
 
     # Assign columns to DataFrame
-    df_test[!, Symbol("state_t", time_stamp[t])] = state_col
-    df_test[!, Symbol("action_t", time_stamp[t])] = action_col
-    df_test[!, Symbol("new_state_t", time_stamp[t])] = new_state_col
-    df_test[!, Symbol("cost_t", time_stamp[t])] = cost_col
-    df_test[!, Symbol("new_state_val_cost_t", time_stamp[t])] = new_state_val_cost
-    df_test[!, Symbol("total_cost_t", time_stamp[t])] = total_cost_opt
+    df_test[!, Symbol("state_t", time_stamp[t+1])] = state_col
+    df_test[!, Symbol("action_t", time_stamp[t+1])] = action_col
+    df_test[!, Symbol("new_state_t", time_stamp[t+1])] = new_state_col
+    df_test[!, Symbol("cost_t", time_stamp[t+1])] = cost_col
+    df_test[!, Symbol("new_state_val_cost_t", time_stamp[t+1])] = new_state_val_cost
+    df_test[!, Symbol("total_cost_t", time_stamp[t+1])] = total_cost_opt
 end
 
 df_test
@@ -82,22 +82,3 @@ df_test[:, 9:20]
 
 # Save the consolidated data to a new CSV file
 CSV.write("Results/consolidated_optimal_state.csv", df_test)
-
-
-for t in 1:T
-    println("Time period: ", time_stamp[t])
-    println("Unique states: ", length(unique(df_test[!, Symbol("state_t", t)])))
-end
-
-t=2
-new_state = [0,0,5]
-next_state = df[df.time .== time_stamp[t + 1], :]
-current_state = df[df.time .== time_stamp[t], :]
-for j in 1:size(next_state, 1)
-    if next_state.state[j] == new_state
-        println("Found")
-    end
-end
-
-
-df[df.time .== time_stamp[4], :]
