@@ -51,7 +51,7 @@ for t in 1:T
         for j in 1:size(next_state, 1)
             if next_state.state[j] == new_state
                 # Save data to corresponding columns
-                state_col[i] = new_state
+                state_col[i] = next_state.state[j]
                 new_state_col[i] = next_state.new_state[j]
                 action_col[i] = next_state.action[j]
                 cost_col[i] = next_state.cost[j]
@@ -78,6 +78,7 @@ for t in 1:T
 end
 
 df_test
+
 
 
 # Save the consolidated data to a new CSV file
@@ -116,7 +117,7 @@ for i in eachindex(states_of_interest)
     df_cost[!, Symbol("cost_$(i)")] = cost_1
 end
 
-cost_plot = plot(time_stamp ,df_cost[:, "cost_1"], label = "State: [0,0,0]", xlabel = "Time", ylabel = "Cost", title = "Cost vs Time", lw = 2, xticks = 8:1:19);
+cost_plot = plot(time_stamp ,df_cost[:, "cost_1"], label = "State: [0,0,0]", xlabel = "Time", ylabel = "Cost", title = "Cost vs Time for 80% Penalty", lw = 2, xticks = 8:1:19);
 
 for i in 2:5
     plot!(time_stamp ,df_cost[:, "cost_$(i)"], label = "State: $(states_of_interest[i])", lw = 2)
@@ -124,7 +125,7 @@ end
 
 cost_plot
 
-savefig(cost_plot, "Results/DP_cost_plot.png")
+savefig(cost_plot, "Plots/DP_cost_plot_80.png")
 
 
 # Create a table with the data used in the plot
@@ -165,14 +166,14 @@ header = collect(df_cost_transposed[1, :])
 df_cost_transposed = DataFrame(df_cost_transposed[2:end, :], Symbol.(header))
 
 # Plot the data
-y = plot(time_stamp, df_cost_transposed[:, 1], xlabel = "Time(hour)", ylabel = "Action (kWh)", title = "Action vs Time", lw = 2, xticks = 8:1:19, legend = false)
+y = plot(time_stamp, df_cost_transposed[:, 1], xlabel = "Time(hour)", ylabel = "Action (kWh)", title = "Action vs Time for 80% Penalty", lw = 2, xticks = 8:1:19, legend = false)
 
 for i in 2:size(df_cost_transposed, 2)
     plot!(time_stamp, df_cost_transposed[:, i], lw = 2)
 end
 y
 
-savefig(y, "Plots/DP_action_plot.png")
+savefig(y, "Plots/DP_action_plot_80.png")
 # ----------------------sum for each state-------------------------
 
 
